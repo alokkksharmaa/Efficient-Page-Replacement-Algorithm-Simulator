@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CPU Scheduling & Page Replacement Simulator</title>
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(120deg, #f8fafc 0%, #e0e7ef 100%);
+      font-family: 'Inter', Helvetica, Arial, sans-serif;
+      color: #222;
+      min-height: 100vh;
+      min-width: 100vw;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+    }
+
+    .container {
+      background: rgba(255,255,255,0.82);
+      border-radius: 18px;
+      box-shadow: 0 4px 32px rgba(44, 62, 80, 0.08);
+      padding: 36px 32px 32px 32px;
+      min-height: 100vh;
+      width: 100vw;
+      max-width: 100vw;
+      margin: 0;
+      transition: background 0.3s;
+      box-sizing: border-box;
+    }
+
+    h1.page-simulator {
+      font-family: 'Inter', sans-serif;
+      font-size: 32px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      color: #555;
+      font-size: 16px;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    select, input {
+      padding: 12px;
+      font-size: 18px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      width: 100%;
+      background-color: #f9f9f9;
+      color: #333;
+      transition: all 0.3s ease-in-out;
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: #4CAF50;
+      background-color: #fff;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: background-color 0.3s ease-in-out;
+      display: block;
+      margin: 0 auto;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    #cpuBar {
+      width: 0;
+      height: 30px;
+      background-color: #4CAF50;
+      border-radius: 15px;
+      transition: width 0.5s ease;
+      margin-bottom: 20px;
+    }
+
+    .result-panel {
+      background: rgba(255, 255, 255, 0.7);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      margin-top: 30px;
+    }
+
+    .glassy {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 25px;
+    }
+
+    .floating-btn {
+      background-color: #4CAF50;
+      color: #fff;
+      border-radius: 32px;
+      min-width: 180px;
+      height: 48px;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 16px rgba(44, 62, 80, 0.10);
+      cursor: pointer;
+      transition: background 0.38s cubic-bezier(.4,0,.2,1), box-shadow 0.38s cubic-bezier(.4,0,.2,1), transform 0.38s cubic-bezier(.4,0,.2,1);
+      border: none;
+      outline: none;
+      gap: 4px;
+      margin: 0 auto 28px auto;
+      margin-top: 10px;
+    }
+    .floating-btn:hover {
+      background-color: #388E3C;
+      box-shadow: 0 8px 24px rgba(44, 62, 80, 0.16);
+      transform: scale(1.025);
+    }
+
+
+    /* Dark Mode */
+    body.dark {
+      background-color: #121212;
+    }
+    body.dark .container {
+      background-color: #1c1c1c;
+    }
+    body.dark select, body.dark input {
+      background-color: #333;
+      color: #fff;
+    }
+    body.dark button {
+      background-color: #333;
+      color: white;
+    }
+    body.dark .result-panel {
+      background: rgba(28, 28, 28, 0.7);
+    }
+
+    /* Gantt Chart Toggle */
+    .gantt-toggle {
+      display: flex;
+      background: rgba(240,240,245,0.82);
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(44,62,80,0.05);
+      overflow: hidden;
+      margin-bottom: 0;
+    }
+    .gantt-tab {
+      border: none;
+      background: none;
+      padding: 10px 32px;
+      font-size: 1.07em;
+      font-family: inherit;
+      font-weight: 600;
+      color: #4CAF50;
+      cursor: pointer;
+      transition: background 0.22s, color 0.22s;
+      outline: none;
+      box-shadow: none;
+      border-radius: 0;
+    }
+    .gantt-tab.active, .gantt-tab:focus {
+      background: #4CAF50;
+      color: #fff;
+    }
+    .gantt-tab:not(:last-child) {
+      border-right: 1px solid #e0e7ef;
+    }
+
+    /* Classic Apple-style Gantt Chart */
+    #classicGanttChart {
+      width: 99%;
+      max-width: 1600px;
+      min-height: 80px;
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      transition: opacity 0.5s cubic-bezier(.4,0,.2,1);
+      opacity: 1;
+      padding: 6px 6px 4px 6px;
+    }
+    .gantt-apple {
+      width: 98%;
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 10px 12px 8px 12px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 18px;
+      box-shadow: 0 4px 32px rgba(44,62,80,0.07);
+      transition: box-shadow 0.3s cubic-bezier(.4,0,.2,1);
+      overflow-x: auto;
+      position: relative;
+      opacity: 0;
+      transform: translateY(24px);
+      animation: fadeInGantt 0.7s cubic-bezier(.4,0,.2,1) forwards;
+    }
+    .gantt-apple.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .gantt-bars {
+      display: flex;
+      position: relative;
+      height: 44px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .gantt-bar {
+      position: absolute;
+      height: 58px;
+      border-radius: 12px;
+      background: linear-gradient(90deg,#4CAF50 80%,#388E3C 100%);
+      color: #fff;
+      font-weight: 600;
+      font-size: 1.1em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 12px rgba(44,62,80,0.06);
+      letter-spacing: 0.5px;
+      padding: 0 24px;
+      transition: box-shadow 0.2s;
+      animation: slideInGantt 0.7s cubic-bezier(.4,0,.2,1) both;
+      opacity: 0.94;
+      z-index: 1;
+    }
+    .gantt-bar:not(:first-child) {
+      margin-left: 3px;
+    }
+    .gantt-times {
+      display: flex;
+      position: relative;
+      width: 100%;
+      height: 22px;
+      align-items: flex-end;
+      justify-content: space-between;
+      font-size: 1em;
+      color: #666;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      margin-top: 2px;
+    }
+    .gantt-time {
+      position: absolute;
+      bottom: 0;
+      transform: translateX(-50%);
+      background: #f5f5f7;
+      border-radius: 8px;
+      padding: 2px 8px;
+      box-shadow: 0 1px 4px rgba(44,62,80,0.03);
+      font-size: 0.96em;
+      z-index: 2;
+    }
+    @keyframes fadeInGantt {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideInGantt {
+      from { opacity: 0; transform: translateY(32px) scaleX(0.8); }
+      to { opacity: 0.94; transform: translateY(0) scaleX(1); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1 class="page-simulator">Page Replacement Simulator</h1>
+
+  <!-- Form for selecting simulation options -->
+  <div class="form-group glassy">
+    <label for="algorithm">Choose Scheduling Algorithm:</label>
+    <select id="algorithm">
+      <option value="fcfs">FCFS (First-Come First-Served)</option>
+      <option value="rr">Round Robin</option>
+      <option value="sjf">Shortest Job First</option>
+      <option value="priority">Priority Scheduling</option>
+    </select>
+  </div>
+
+  <div class="form-group glassy">
+    <label for="frameSize">Enter Frame Size:</label>
+    <input type="number" id="frameSize" placeholder="Enter frame size eg 2,3,4,5" />
+  </div>
+
+  <div class="form-group glassy">
+    <label for="referenceString">Enter Reference String (comma-separated):</label>
+    <input type="text" id="referenceString" placeholder="Enter reference string" />
+  </div>
+
+  <!-- Simulate Button -->
+  <button id="simulateButton" onclick="simulate()">Simulate</button>
+
+  <!-- CPU Usage Bar -->
+  <h3>Simulated CPU Load</h3>
+  <div id="cpuBar"></div>
+
+  <!-- Result Panel -->
+  <div id="resultsArea" class="result-panel"></div>
+
+  <!-- Both Gantt Charts (Classic above, Modern below) -->
+  <div id="ganttChartContainer">
+    <div id="classicGanttChart" style="margin-top:32px;"></div>
+    <canvas id="ganttChart" style="margin-top:32px;display:block;width:60%;max-width:600px;margin-left:auto;margin-right:auto;"></canvas>
+  </div>
+
+  <!-- Educational Section -->
+  <div class="glassy" id="educationPanel">
+    <button id="downloadPdfBtn" title="Download Documentation as PDF" class="floating-btn" onclick="generateDocumentationPDF()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span style="font-weight:600;font-size:1.06em;letter-spacing:0.5px;">Download PDF</span>
+    </button>
+    <h3>What is Page Replacement?</h3>
+    <p>Page replacement is a memory management scheme that helps operating systems swap pages in and out of physical memory.</p>
+    <h4>Why it's needed</h4>
+    <p>Page replacement optimizes memory usage, helping keep the system running efficiently.</p>
+    <h4>Where it's used in real OS</h4>
+    <ul>
+      <li>Memory Management Unit (MMU)</li>
+      <li>Page Tables</li>
+      <li>Cache Memory</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // Page Replacement Simulation Logic
+  function simulate() {
+    const algorithm = document.getElementById('algorithm').value;
+    const frameSize = Number(document.getElementById('frameSize').value);
+    const referenceString = document.getElementById('referenceString').value.split(',').map(Number);
+
+    simulateCpuLoad();
+    const results = simulatePageReplacement(referenceString, frameSize, algorithm);
+    displayResults(results);
+    updateGanttChart(referenceString, results);
+  }
+  
+  function simulatePageReplacement(referenceString, frameSize, algorithm) {
+    let frames = [];
+    let pageFaults = 0;
+    let pageHits = 0;
+    let pageFaultsList = [];
+    let pageHitsList = [];
+
+    referenceString.forEach(page => {
+      if (!frames.includes(page)) {
+        if (frames.length < frameSize) {
+          frames.push(page);
+        } else {
+          switch (algorithm) {
+            case 'fcfs':
+              frames.shift();
+              frames.push(page);
+              break;
+            case 'rr':
+              frames.shift();
+              frames.push(page);
+              break;
+            case 'sjf':
+              frames.sort((a, b) => a - b);
+              frames.shift();
+              frames.push(page);
+              break;
+            case 'priority':
+              frames.push(page);
+              break;
+          }
+          pageFaults++;
+          pageFaultsList.push(page);
+        }
+      } else {
+        pageHits++;
+        pageHitsList.push(page);
+      }
+    });
+
+    return { pageFaults, pageHits, frames, pageFaultsList, pageHitsList };
+  }
+
+  function displayResults(results) {
+    const resultsArea = document.getElementById('resultsArea');
+    resultsArea.innerHTML = `
+      <h2>Results</h2>
+      <p><strong>Total Page Faults:</strong> ${results.pageFaults}</p>
+      <p><strong>Total Page Hits:</strong> ${results.pageHits}</p>
+      <p><strong>Final Frame Status:</strong> ${results.frames.join(' | ')}</p>
+      <h3>Step-by-Step:</h3>
+      <p><strong>Page Faults:</strong> ${results.pageFaultsList.join(', ')}</p>
+      <p><strong>Page Hits:</strong> ${results.pageHitsList.join(', ')}</p>
+    `;
+  }
+
+  // CPU Load Simulation Logic
+  // Updated CPU Load Simulation Logic
+// CPU Load Simulation Logic
+function simulateCpuLoad() {
+  const cpuBar = document.getElementById('cpuBar');
+  let load = 0;
+
+  // Clear any previous load animation
+  cpuBar.style.width = '0%';
+
+  // Simulate increasing CPU load to a max value
+  const interval = setInterval(() => {
+    if (load < 100) {
+      load += Math.random() * 5;  // Increase the load randomly
+      if (load > 100) load = 100;  // Cap the load at 100%
+      cpuBar.style.width = `${load}%`;
+    } else {
+      clearInterval(interval);  // Stop the animation once we reach 100%
+      setTimeout(() => {
+        // Reset the load after a delay (keeping the load bar visible for a while)
+        cpuBar.style.width = '0%';  // Reset to 0% after 2 seconds
+      }, 2000); // Wait for 2 seconds at 100%
+    }
+  }, 1000);  // Increase load every second
+}
+
+
+
+
+  // Classic Gantt Chart Visualization for CPU Scheduling
+  function updateGanttChart(referenceString, results) {
+    // Only show classic Gantt for scheduling algorithms
+    const algo = document.getElementById('algorithm').value;
+    if (!['fcfs','sjf','rr'].includes(algo)) {
+      document.getElementById('classicGanttChart').innerHTML = '';
+      document.getElementById('ganttChart').style.display = 'none';
+      return;
+    }
+    document.getElementById('ganttChart').style.display = '';
+    // Generate process timeline
+    let processes = parseProcesses(referenceString, algo);
+    let timeline = computeScheduleTimeline(processes, algo);
+    renderClassicGantt(timeline);
+    updateModernGantt(referenceString, results);
+  }
+
+  // Modern Gantt Chart (existing canvas-based)
+  function updateModernGantt(referenceString, results) {
+    // Only show for CPU scheduling algos
+    const algo = document.getElementById('algorithm').value;
+    if (!['fcfs','sjf','rr'].includes(algo)) {
+      document.getElementById('ganttChart').style.display = 'none';
+      return;
+    }
+    const ctx = document.getElementById('ganttChart').getContext('2d');
+    // Destroy previous chart instance if any
+    if (window._ganttChartInstance) window._ganttChartInstance.destroy();
+    // Example: show process burst as horizontal bars
+    let procs = parseProcesses(referenceString, algo);
+    let labels = procs.map(p=>p.name);
+    let data = procs.map(p=>p.burst);
+    window._ganttChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Burst Time',
+          data: data,
+          backgroundColor: '#4CAF50',
+          borderRadius: 8,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end',
+            align: 'end',
+            color: 'white',
+            font: { weight: 'bold' }
+          }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Time' }, beginAtZero: true },
+          y: { title: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Parse input for processes (assume input is like: P1,4;P2,3;P3,2)
+  function parseProcesses(refStr, algo) {
+    // For demo: if refStr is numbers, auto-create processes
+    let arr = refStr;
+    if (typeof refStr === 'string') arr = refStr.split(',');
+    let procs = [];
+    let pid = 1;
+    arr.forEach((item) => {
+      let val = String(item).trim();
+      if (val.includes(';')) val = val.replace(';','');
+      if (/P\d+/i.test(val)) {
+        // Format: P1,4
+        let [name,burst] = val.split(/,|:/);
+        procs.push({name:name.trim(),burst:parseInt(burst),arrival:0});
+      } else if (!isNaN(Number(val))) {
+        procs.push({name:'P'+pid,burst:Number(val),arrival:0});
+        pid++;
+      }
+    });
+    return procs;
+  }
+
+  // Compute schedule timeline for FCFS, SJF, RR
+  function computeScheduleTimeline(procs, algo) {
+    let timeline = [];
+    let t = 0;
+    let ready = procs.map(p=>({...p}));
+    if (algo==='fcfs') {
+      ready.forEach(p => {
+        timeline.push({name:p.name,start:t,end:t+p.burst});
+        t+=p.burst;
+      });
+    } else if (algo==='sjf') {
+      ready.sort((a,b)=>a.burst-b.burst);
+      ready.forEach(p => {
+        timeline.push({name:p.name,start:t,end:t+p.burst});
+        t+=p.burst;
+      });
+    } else if (algo==='rr') {
+      const quantum = 2;
+      let queue = ready.map(p=>({...p,remain:p.burst}));
+      let finished = 0;
+      while (finished<queue.length) {
+        for (let i=0;i<queue.length;i++) {
+          let p = queue[i];
+          if (p.remain>0) {
+            let st = t;
+            let slice = Math.min(quantum,p.remain);
+            t+=slice;
+            timeline.push({name:p.name,start:st,end:t});
+            p.remain-=slice;
+            if (p.remain<=0) finished++;
+          }
+        }
+      }
+    }
+    return timeline;
+  }
+
+  // Render the classic Gantt chart
+  function renderClassicGantt(timeline) {
+    const chart = document.getElementById('classicGanttChart');
+    chart.innerHTML = '';
+    if (!timeline.length) return;
+    // Chart container
+    let cont = document.createElement('div');
+    cont.className = 'gantt-apple';
+    // Bars row
+    let bars = document.createElement('div');
+    bars.className = 'gantt-bars';
+    // Time row
+    let times = document.createElement('div');
+    times.className = 'gantt-times';
+    // Calculate total time
+    let total = timeline[timeline.length-1].end;
+    // Render bars
+    timeline.forEach((seg,i)=>{
+      let bar = document.createElement('div');
+      bar.className = 'gantt-bar';
+      bar.innerText = seg.name;
+      bar.style.width = ((seg.end-seg.start)/total*100)+'%';
+      bar.style.left = (seg.start/total*100)+'%';
+      bar.style.animationDelay = (i*0.12)+'s';
+      bars.appendChild(bar);
+    });
+    // Render time markers
+    timeline.forEach((seg,i)=>{
+      let time = document.createElement('span');
+      time.className = 'gantt-time';
+      time.innerText = seg.start;
+      time.style.left = (seg.start/total*100)+'%';
+      times.appendChild(time);
+    });
+    // Last time marker
+    let last = document.createElement('span');
+    last.className = 'gantt-time';
+    last.innerText = timeline[timeline.length-1].end;
+    last.style.left = '100%';
+    times.appendChild(last);
+    cont.appendChild(bars);
+    cont.appendChild(times);
+    chart.appendChild(cont);
+    // Animate in
+    setTimeout(()=>{cont.classList.add('show');},50);
+  }
+// --- PDF Documentation Generation ---
+// Uses html2pdf.js from CDN (non-intrusive, no HTML/CSS/layout changes)
+function generateDocumentationPDF() {
+  // Gather simulation results from the DOM
+  const resultsArea = document.getElementById('resultsArea');
+  let pageFaults = '', pageHits = '', frameStates = '', pageFaultsList = '', pageHitsList = '';
+  if (resultsArea) {
+    const html = resultsArea.innerHTML;
+    const faultsMatch = html.match(/Total Page Faults:\s*<\/strong>\s*(\d+)/);
+    const hitsMatch = html.match(/Total Page Hits:\s*<\/strong>\s*(\d+)/);
+    const frameMatch = html.match(/Final Frame Status:\s*<\/strong>\s*([^<]+)/);
+    const faultsListMatch = html.match(/Page Faults:\s*<\/strong>\s*([^<]+)/);
+    const hitsListMatch = html.match(/Page Hits:\s*<\/strong>\s*([^<]+)/);
+    pageFaults = faultsMatch ? faultsMatch[1] : '-';
+    pageHits = hitsMatch ? hitsMatch[1] : '-';
+    frameStates = frameMatch ? frameMatch[1] : '-';
+    pageFaultsList = faultsListMatch ? faultsListMatch[1] : '-';
+    pageHitsList = hitsListMatch ? hitsListMatch[1] : '-';
+  }
+  // Build documentation HTML (Apple-style, organized, PDF-specific)
+  const doc = document.createElement('div');
+  doc.innerHTML = `
+    <style>
+      .pdf-section { page-break-after: always; padding-bottom: 8px; margin-bottom: 18px; }
+      .pdf-section:last-child { page-break-after: auto; }
+      .pdf-title { text-align:center;font-weight:600;font-size:2.2em;letter-spacing:1px;margin-bottom:24px; font-family: 'Inter', Helvetica, Arial, sans-serif; }
+      .pdf-date { text-align:center;color:#888;font-size:1em;margin-bottom:16px; }
+      .pdf-hr { margin:24px 0 32px 0; border:0; border-top:1px solid #eee; }
+      .pdf-h2 { font-size:1.3em;margin-top:18px;margin-bottom:10px;font-weight:600; color:#222; }
+      .pdf-p, .pdf-li { font-size:1.07em; color:#333; font-family: 'Inter', Helvetica, Arial, sans-serif; margin-bottom:10px; line-height:1.6; }
+      .pdf-li { margin-left: 16px; }
+      .pdf-table { width:100%;border-collapse:collapse;font-size:1.05em;margin-bottom:18px; }
+      .pdf-table th, .pdf-table td { padding:8px 6px;border:1px solid #eee;text-align:left; }
+      .pdf-table th { background:#f5f5f7; font-weight:600; }
+      .pdf-table-row { page-break-inside: avoid; }
+      .pdf-results-section { margin-top:18px; margin-bottom:26px; }
+      .pdf-results-title { font-size:1.16em; font-weight:600; margin-bottom:12px; color:#222; }
+      .pdf-result-key { font-weight:600; color:#333; }
+      .pdf-footer { color:#888;font-size:0.96em;text-align:center;margin-top:32px; }
+      .pdf-gantt-title { font-size:1.2em;margin-top:26px;margin-bottom:12px;text-align:center;font-weight:600; }
+      @media print {
+        .pdf-section { page-break-after: always; }
+        .pdf-section:last-child { page-break-after: auto; }
+      }
+    </style>
+    <div class="pdf-section">
+      <div class="pdf-title">Page Replacement Simulator Documentation</div>
+      <div class="pdf-date">Generated on ${new Date().toLocaleString()}</div>
+      <hr class="pdf-hr" />
+      <div class="pdf-h2">What is Page Replacement?</div>
+      <div class="pdf-p">Page replacement is a memory management scheme in operating systems that decides which memory pages to swap out when new pages need to be loaded into physical memory. It is essential in systems using virtual memory, where the physical RAM is limited compared to the address space required by running programs.</div>
+      <ul style="margin-bottom:8px;">
+        <li class="pdf-li"><b>Why it's used:</b> Optimizes memory usage, prevents thrashing, and ensures efficient execution of processes.</li>
+        <li class="pdf-li"><b>Where it's applied:</b> Memory Management Unit (MMU), Page Tables, TLBs, Cache Memory.</li>
+      </ul>
+    </div>
+    <div class="pdf-section">
+      <div class="pdf-h2">Page Replacement Algorithms</div>
+      <ul>
+        <li class="pdf-li"><b>FIFO (First-In, First-Out):</b> The oldest page in memory is replaced first.<br><i>Example:</i> Frames: [2, 3, 5], Reference: 2, 3, 5, 6 → 2 replaced first.</li>
+        <li class="pdf-li"><b>LRU (Least Recently Used):</b> The page that has not been used for the longest time is replaced.<br><i>Example:</i> Frames: [2, 3, 5], Last used: 2 (oldest), so 2 replaced.</li>
+        <li class="pdf-li"><b>Optimal Replacement:</b> Replaces the page that will not be used for the longest period in the future.<br><i>Example:</i> Frames: [2, 3, 5], Reference: 3, 2, 5, 6, 2 → 3 replaced if it is not needed soon.</li>
+        <li class="pdf-li"><b>Clock Algorithm:</b> Uses a circular list (like a clock) and a reference bit for each page.<br><i>Example:</i> If reference bit is 0, replace; else, set to 0 and move clock hand.</li>
+      </ul>
+    </div>
+    <div class="pdf-section">
+      <div class="pdf-h2">CPU Scheduling Algorithms</div>
+      <ul>
+        <li class="pdf-li"><b>FCFS (First-Come, First-Served):</b> Processes are scheduled in the order they arrive. <b>Non-preemptive.</b> <i>Use-case:</i> Simple batch systems.</li>
+        <li class="pdf-li"><b>SJF (Shortest Job First):</b> The process with the smallest execution time is scheduled next. <b>Can be preemptive or non-preemptive.</b> <i>Use-case:</i> Reduces average waiting time.</li>
+        <li class="pdf-li"><b>Round Robin:</b> Each process gets a fixed time slice (quantum) in turn. <b>Preemptive.</b> <i>Use-case:</i> Time-sharing systems.</li>
+      </ul>
+      <div class="pdf-p"><b>Scheduling Types:</b><br>
+        <b>Preemptive:</b> Allows interruption of running processes (e.g., Round Robin).<br>
+        <b>Non-preemptive:</b> Process runs until completion (e.g., FCFS).
+      </div>
+    </div>
+    <div class="pdf-section pdf-results-section">
+      <div class="pdf-h2">Simulation Results</div>
+      <table class="pdf-table">
+        <tr class="pdf-table-row"><th>Metric</th><th>Value</th></tr>
+        <tr class="pdf-table-row"><td class="pdf-result-key">Total Page Faults</td><td>${pageFaults}</td></tr>
+        <tr class="pdf-table-row"><td class="pdf-result-key">Total Page Hits</td><td>${pageHits}</td></tr>
+        <tr class="pdf-table-row"><td class="pdf-result-key">Final Frame States</td><td>${frameStates}</td></tr>
+        <tr class="pdf-table-row"><td class="pdf-result-key">Page Faults (Step-by-Step)</td><td>${pageFaultsList}</td></tr>
+        <tr class="pdf-table-row"><td class="pdf-result-key">Page Hits (Step-by-Step)</td><td>${pageHitsList}</td></tr>
+      </table>
+    </div>
+    <div class="pdf-section">
+      <div class="pdf-gantt-title">Gantt Charts</div>
+      <div id="classicGanttPdfImage" style="width:100%;display:flex;justify-content:center;margin-bottom:18px;"></div>
+      <div id="modernGanttPdfImage" style="width:100%;display:flex;justify-content:center;margin-bottom:18px;"></div>
+    </div>
+    <div class="pdf-footer">Page Replacement Simulator &copy; ${new Date().getFullYear()}</div>
+  `;
+  // Insert Classic Gantt chart (HTML) as image
+  const classicGanttEl = document.getElementById('classicGanttChart');
+  if (typeof html2canvas === 'function' && classicGanttEl) {
+    html2canvas(classicGanttEl, { scale: 2, useCORS: true }).then(canvas => {
+      const img = new Image();
+      img.src = canvas.toDataURL('image/png');
+      img.style.maxWidth = '98%';
+      img.style.margin = '0 auto 16px auto';
+      img.style.display = 'block';
+      doc.querySelector('#classicGanttPdfImage').appendChild(img);
+      // Insert Modern Gantt (canvas) as image after Classic
+      const ganttCanvas = document.getElementById('ganttChart');
+      if (ganttCanvas && ganttCanvas.width > 0 && ganttCanvas.height > 0) {
+        const img2 = new Image();
+        img2.src = ganttCanvas.toDataURL('image/png');
+        img2.style.maxWidth = '60%';
+        img2.style.margin = '0 auto 16px auto';
+        img2.style.display = 'block';
+        doc.querySelector('#modernGanttPdfImage').appendChild(img2);
+      }
+      // Use html2pdf.js to generate and save the PDF after images are loaded
+      setTimeout(() => {
+        html2pdf()
+          .set({
+            margin: [0.7, 0.7, 0.7, 0.7],
+            filename: 'Page_Replacement_Simulator_Documentation.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+          })
+          .from(doc)
+          .save();
+      }, 350);
+    });
+  } else {
+    // fallback: just export doc
+    html2pdf()
+      .set({
+        margin: [0.7, 0.7, 0.7, 0.7],
+        filename: 'Page_Replacement_Simulator_Documentation.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      })
+      .from(doc)
+      .save();
+  }
+}
+</script>
+</body>
+</html>
